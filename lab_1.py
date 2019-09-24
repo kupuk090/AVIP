@@ -65,8 +65,8 @@ class LabImage:
 
     @timeit
     def binarization(self, rsize=3, Rsize=15, eps=15):
-        @timeit
-        def modificated_otsu_global(matrix: np.ndarray, epsilon=15):
+        # @timeit
+        def otsu_global(matrix: np.ndarray):
             n_curr = 0
             T_res = 0
             M0_res = 0
@@ -88,12 +88,12 @@ class LabImage:
                     n_curr = n
                     T_res = t
                     M0_res = M0
-                    M1_res =M1
+                    M1_res = M1
 
             return T_res, M0_res, M1_res
 
         @timeit
-        def split_submatrix(matrix: np.ndarray, submat1_shape: tuple, submat2_shape: tuple, order='C'):
+        def split_submatrix(matrix: np.ndarray, submat1_shape: tuple, submat2_shape: tuple):
             p, q = submat1_shape
             P, Q = submat2_shape
             m, n = matrix.shape
@@ -104,12 +104,10 @@ class LabImage:
             bias_q = (Q - q) // 2
             for x in range(0, m, p):
                 for y in range(0, n, q):
-                    k.append(matrix[
-                             x: (x + p) if (x + p - m) < 0 else m,
-                             y: (y + q) if (y + q - n) < 0 else n])
-                    K.append(matrix[
-                             (x - bias_p) if (x - bias_p) > 0 else 0: (x + P - bias_p) if (x + P - bias_p) < m else m,
-                             (y - bias_q) if (y - bias_q) > 0 else 0: (y + Q - bias_q) if (y + Q - bias_q) < n else n])
+                    k.append(((x, (x + p) if (x + p - m) < 0 else m),
+                              (y, (y + q) if (y + q - n) < 0 else n)))
+                    K.append((((x - bias_p) if (x - bias_p) > 0 else 0, (x + P - bias_p) if (x + P - bias_p) < m else m),
+                             ((y - bias_q) if (y - bias_q) > 0 else 0, (y + Q - bias_q) if (y + Q - bias_q) < n else n)))
             return k, K
 
         def create_matrix(input: np.ndarray, shape: tuple):
@@ -122,34 +120,39 @@ class LabImage:
 
             return bin_matrix
 
-        def binarization_processor(matrix: tuple, epsilon=eps):
-            matrix_k, matrix_K = matrix
-            T, M0, M1 = modificated_otsu_global(matrix_K, eps)
+        def binarization_processor(matrix_ind: tuple, epsilon=eps):
+            matrix_k_ind, matrix_K_ind = matrix_ind
+            matrix_k = self.bin_matrix[matrix_k_ind[0][0]: matrix_k_ind[0][1],
+                                       matrix_k_ind[1][0]: matrix_k_ind[1][1]]
+            matrix_K = self.bin_matrix[matrix_K_ind[0][0]: matrix_K_ind[0][1],
+                                       matrix_K_ind[1][0]: matrix_K_ind[1][1]]
+            T, M0, M1 = otsu_global(matrix_K)
 
             if abs(M1 - M0) >= epsilon:
-                return np.uint8(np.where(matrix_k < T, 0, 255))
+                self.bin_matrix[matrix_k_ind[0][0]: matrix_k_ind[0][1], matrix_k_ind[1][0]: matrix_k_ind[1][1]] = \
+                    np.where(matrix_k < T, 0, 255)
             else:
                 k_mean = matrix_k.mean()
                 new_T = (M0 + M1) / 2
-                return np.uint8(matrix_k.fill(0 if k_mean <= new_T else 255))
+                matrix_k.fill(0 if k_mean <= new_T else 255)
 
         if (not (rsize % 2) and not (Rsize % 2)) or ((rsize % 2) and (Rsize % 2)):
             if self.grayscale_matrix is None:
                 self.to_grayscale()
+            self.bin_matrix = self.grayscale_matrix.astype(np.uint8)
 
-            k, K = split_submatrix(self.grayscale_matrix, (rsize, rsize), (Rsize, Rsize))
+            k, K = split_submatrix(self.bin_matrix, (rsize, rsize), (Rsize, Rsize))
 
-            t_bin_matrix = []
             for x in zip(k, K):
-                t_bin_matrix.append(binarization_processor(x))
+                binarization_processor(x)
             # with ThreadPool() as p:
-            #     t_bin_matrix = p.map(binarization_processor, zip(k, K))
-            t_bin_matrix = np.array(t_bin_matrix)\
-                .reshape(((self.width // rsize) if not (self.width % rsize) else (self.width // rsize + 1),
-                          (self.height // rsize) if not (self.height % rsize) else (self.height // rsize + 1)))
+            #     p.map(binarization_processor, zip(k, K))
+            # t_bin_matrix = np.array(t_bin_matrix)\
+            #     .reshape(((self.width // rsize) if not (self.width % rsize) else (self.width // rsize + 1),
+            #               (self.height // rsize) if not (self.height % rsize) else (self.height // rsize + 1)))
 
-            self.bin_matrix = create_matrix(t_bin_matrix, (self.width, self.height))
-            self.result = Image.fromarray(np.uint8(self.bin_matrix), 'L')
+            # self.bin_matrix = create_matrix(t_bin_matrix, (self.width, self.height))
+            self.result = Image.fromarray(self.bin_matrix, 'L')
 
         else:
             raise WrongWindowSize("Rsize={} and rsize={} must be even or odd both together".format(Rsize, rsize))
@@ -159,9 +162,9 @@ class LabImage:
             self.result.save(name)
         else:
             raise ResultNotExist("No such results for saving it to {}".format(name))
-        
 
-im = LabImage("sample_5.bmp")
+
+im = LabImage("sample_3.bmp")
 im.to_grayscale()
 im.binarization(rsize=3, Rsize=15)
 im.show()
