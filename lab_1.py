@@ -75,7 +75,7 @@ class LabImage:
             p_tmp = np.unique(matrix, return_counts=True)
             p = p_tmp[1] / matrix.size
 
-            for t in range(256):
+            for t in range(matrix.min(), matrix.max()):
                 w0 = p[p_tmp[0] <= t].sum() if p[p_tmp[0] <= t].sum() > 0.00001 else 0.00001
                 w1 = 1 - w0 if 1 - w0 > 0.00001 else 0.00001
                 M0 = (p_tmp[0][p_tmp[0] <= t] * p[p_tmp[0] <= t]).sum() / w0
@@ -110,22 +110,12 @@ class LabImage:
                              ((y - bias_q) if (y - bias_q) > 0 else 0, (y + Q - bias_q) if (y + Q - bias_q) < n else n)))
             return k, K
 
-        def create_matrix(input: np.ndarray, shape: tuple):
-            # приведению обратно к единной матрице
-            bin_matrix = np.ndarray(shape)
-            for i in range(len(input)):
-                for j in range(len(input[i])):
-                    bin_matrix[rsize * i: rsize * (i + 1) if (rsize * (i + 1) - self.width) < 0 else self.width,
-                               rsize * j: rsize * (j + 1) if (rsize * (j + 1) - self.height) < 0 else self.height] = input[i, j]
-
-            return bin_matrix
-
         def binarization_processor(matrix_ind: tuple, epsilon=eps):
             matrix_k_ind, matrix_K_ind = matrix_ind
-            matrix_k = self.bin_matrix[matrix_k_ind[0][0]: matrix_k_ind[0][1],
-                                       matrix_k_ind[1][0]: matrix_k_ind[1][1]]
-            matrix_K = self.bin_matrix[matrix_K_ind[0][0]: matrix_K_ind[0][1],
-                                       matrix_K_ind[1][0]: matrix_K_ind[1][1]]
+            matrix_k = self.grayscale_matrix[matrix_k_ind[0][0]: matrix_k_ind[0][1],
+                                             matrix_k_ind[1][0]: matrix_k_ind[1][1]]
+            matrix_K = self.grayscale_matrix[matrix_K_ind[0][0]: matrix_K_ind[0][1],
+                                             matrix_K_ind[1][0]: matrix_K_ind[1][1]]
             T, M0, M1 = otsu_global(matrix_K)
 
             if abs(M1 - M0) >= epsilon:
@@ -134,7 +124,8 @@ class LabImage:
             else:
                 k_mean = matrix_k.mean()
                 new_T = (M0 + M1) / 2
-                matrix_k.fill(0 if k_mean <= new_T else 255)
+                self.bin_matrix[matrix_k_ind[0][0]: matrix_k_ind[0][1], matrix_k_ind[1][0]: matrix_k_ind[1][1]]\
+                    .fill(0 if k_mean <= new_T else 255)
 
         if (not (rsize % 2) and not (Rsize % 2)) or ((rsize % 2) and (Rsize % 2)):
             if self.grayscale_matrix is None:
@@ -143,15 +134,11 @@ class LabImage:
 
             k, K = split_submatrix(self.bin_matrix, (rsize, rsize), (Rsize, Rsize))
 
-            for x in zip(k, K):
-                binarization_processor(x)
-            # with ThreadPool() as p:
-            #     p.map(binarization_processor, zip(k, K))
-            # t_bin_matrix = np.array(t_bin_matrix)\
-            #     .reshape(((self.width // rsize) if not (self.width % rsize) else (self.width // rsize + 1),
-            #               (self.height // rsize) if not (self.height % rsize) else (self.height // rsize + 1)))
+            # for x in zip(k, K):
+            #     binarization_processor(x)
+            with ThreadPool() as p:
+                p.map(binarization_processor, zip(k, K))
 
-            # self.bin_matrix = create_matrix(t_bin_matrix, (self.width, self.height))
             self.result = Image.fromarray(self.bin_matrix, 'L')
 
         else:
@@ -164,7 +151,7 @@ class LabImage:
             raise ResultNotExist("No such results for saving it to {}".format(name))
 
 
-im = LabImage("sample_3.bmp")
+im = LabImage("sample_2.bmp")
 im.to_grayscale()
 im.binarization(rsize=3, Rsize=15)
 im.show()
