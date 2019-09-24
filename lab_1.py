@@ -1,8 +1,6 @@
 from PIL import Image
 import numpy as np
 
-from multiprocessing.pool import ThreadPool
-
 import time
 
 
@@ -134,10 +132,8 @@ class LabImage:
 
             k, K = split_submatrix(self.bin_matrix, (rsize, rsize), (Rsize, Rsize))
 
-            # for x in zip(k, K):
-            #     binarization_processor(x)
-            with ThreadPool() as p:
-                p.map(binarization_processor, zip(k, K))
+            for x in zip(k, K):
+                binarization_processor(x)
 
             self.result = Image.fromarray(self.bin_matrix, 'L')
 
