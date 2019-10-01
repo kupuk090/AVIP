@@ -1,58 +1,16 @@
 from PIL import Image
 import numpy as np
 
-import time
+from core import LabImage, timeit
+from exceptions import WrongWindowSize
 
 
-def timeit(method):
-    def timed(*args, **kw):
-        ts = time.time()
-        result = method(*args, **kw)
-        te = time.time()
-        if 'log_time' in kw:
-            name = kw.get('log_name', method.__name__.upper())
-            kw['log_time'][name] = int((te - ts) * 1000)
-        else:
-            print('%r  %2.2f ms' % \
-                  (method.__name__, (te - ts) * 1000))
-        return result
-    return timed
-
-
-class ResultNotExist(Exception):
-    pass
-
-
-class WrongWindowSize(Exception):
-    pass
-
-
-class LabImage:
+class Lab1(LabImage):
     def __init__(self, path=None):
-        self.path = path
-        self.result = None
         self.grayscale_matrix = None
         self.bin_matrix = None
 
-        if path is not None:
-            self.orig = Image.open(path).convert("RGB")
-            self.size = self.orig.size
-            self.height, self.width = self.size
-            self.rgb_matrix = np.array(self.orig)
-
-    def read(self, path: str):
-        self.path = path
-
-        self.orig = Image.open(path).convert("RGB")
-        self.size = self.orig.size
-        self.height, self.width = self.size
-        self.rgb_matrix = np.array(self.orig)
-
-    def show(self):
-        if self.result is None:
-            self.orig.show()
-        else:
-            self.result.show()
+        super(Lab1, self).__init__(path=path)
 
     def to_grayscale(self):
         gray_matrix = np.sum(self.rgb_matrix, axis=2) // 3
@@ -63,7 +21,6 @@ class LabImage:
 
     @timeit
     def binarization(self, rsize=3, Rsize=15, eps=15):
-        # @timeit
         def otsu_global(matrix: np.ndarray):
             n_curr = 0
             T_res = 0
@@ -140,15 +97,11 @@ class LabImage:
         else:
             raise WrongWindowSize("Rsize={} and rsize={} must be even or odd both together".format(Rsize, rsize))
 
-    def save(self, name: str):
-        if self.result is not None:
-            self.result.save(name)
-        else:
-            raise ResultNotExist("No such results for saving it to {}".format(name))
 
+im = Lab1("sample_3.bmp")
 
-im = LabImage("sample_2.bmp")
 im.to_grayscale()
+# im.save("sample_5_gray.bmp")
 im.binarization(rsize=3, Rsize=15)
 im.show()
 
