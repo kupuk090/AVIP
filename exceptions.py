@@ -4,3 +4,7 @@ class ResultNotExist(Exception):
 
 class WrongWindowSize(Exception):
     pass
+
+
+class WrongRank(Exception):
+    pass
