@@ -47,23 +47,26 @@ class Lab1(LabImage):
 
             return T_res, M0_res, M1_res
 
-        @timeit
+        # @timeit
         def split_submatrix(matrix: np.ndarray, submat1_shape: tuple, submat2_shape: tuple):
             p, q = submat1_shape
             P, Q = submat2_shape
             m, n = matrix.shape
-            k = []
-            K = []
 
             bias_p = (P - p) // 2
             bias_q = (Q - q) // 2
             for x in range(0, m, p):
                 for y in range(0, n, q):
-                    k.append(((x, (x + p) if (x + p - m) < 0 else m),
-                              (y, (y + q) if (y + q - n) < 0 else n)))
-                    K.append((((x - bias_p) if (x - bias_p) > 0 else 0, (x + P - bias_p) if (x + P - bias_p) < m else m),
-                             ((y - bias_q) if (y - bias_q) > 0 else 0, (y + Q - bias_q) if (y + Q - bias_q) < n else n)))
-            return k, K
+                    yield (
+                              (
+                                  (x, (x + p) if (x + p - m) < 0 else m),
+                                  (y, (y + q) if (y + q - n) < 0 else n)
+                              ),
+                              (
+                                  ((x - bias_p) if (x - bias_p) > 0 else 0, (x + P - bias_p) if (x + P - bias_p) < m else m),
+                                  ((y - bias_q) if (y - bias_q) > 0 else 0, (y + Q - bias_q) if (y + Q - bias_q) < n else n)
+                              )
+                    )
 
         def binarization_processor(matrix_ind: tuple, epsilon=eps):
             matrix_k_ind, matrix_K_ind = matrix_ind
@@ -87,9 +90,7 @@ class Lab1(LabImage):
                 self.to_grayscale()
             self.bin_matrix = self.grayscale_matrix.astype(np.uint8)
 
-            k, K = split_submatrix(self.bin_matrix, (rsize, rsize), (Rsize, Rsize))
-
-            for x in zip(k, K):
+            for x in split_submatrix(self.bin_matrix, (rsize, rsize), (Rsize, Rsize)):
                 binarization_processor(x)
 
             self.result = Image.fromarray(self.bin_matrix, 'L')
