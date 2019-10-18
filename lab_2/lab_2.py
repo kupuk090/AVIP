@@ -49,6 +49,6 @@ class Lab2(LabImage):
         self.result = Image.fromarray(self.filtered_matrix, 'L')
 
 
-im = Lab2("sample_1.bmp")
-im.rank_filter(13, wsize=5)
+im = Lab2("sample_4.bmp")
+im.rank_filter(6, wsize=3)
 im.show()
