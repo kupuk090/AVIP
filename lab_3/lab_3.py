@@ -42,6 +42,6 @@ class Lab3(LabImage):
             self.result = Image.fromarray(np.uint8(gradient_matrix), 'L')
 
 
-im = Lab3("sample_2.bmp")
-im.scharr_operator()
+im = Lab3("sample_1.bmp")
+im.scharr_operator(75)
 im.show()

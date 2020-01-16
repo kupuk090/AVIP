@@ -25,7 +25,7 @@ def timeit(method):
 
 
 class LabImage:
-    def __init__(self, path=None):
+    def __init__(self, path=None, image=None):
         self.path = path
         self.result = None
 
@@ -35,6 +35,12 @@ class LabImage:
                 path = os.path.normpath(os.path.join(sys.path[0], path))
 
             self.orig = Image.open(path).convert("RGB")
+            self.size = self.orig.size
+            self.height, self.width = self.size
+            self.rgb_matrix = np.array(self.orig)
+
+        if image is not None:
+            self.orig = image
             self.size = self.orig.size
             self.height, self.width = self.size
             self.rgb_matrix = np.array(self.orig)
